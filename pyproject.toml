@@ -1,0 +1,6 @@
+[project]
+name = "hac"
+version = "0.1.0"
+
+[project.scripts]
+hac = "hac.__main__:main"
