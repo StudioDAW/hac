@@ -1,4 +1,30 @@
-white = "white"
+from .fonts import _paths
+import os
+
+"""
+@font-face {
+
+    font-family: "Inter";
+
+    src: url("fonts/Inter-Regular.woff2") format("woff2");
+
+    font-weight: 400;
+
+}
+"""
+css = []
+def reset():
+    global css
+    css = []
+
+def load_font(font):
+    font_family, font_format = os.path.splitext(os.path.basename(_paths[font]))
+    css.append({
+        "css": "@font-face",
+        "font-family": f'"{font_family}"',
+        "src": f'url("{_paths[font]}"), format("{font_format}")'
+    })
+    return f"\'{font_family}\'"
 
 def clone_class(cls):
     attrs = {}

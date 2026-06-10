@@ -6,13 +6,16 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 import threading
-from .server import serve 
 import logging
+from . import fonts
+from matplotlib import font_manager
+import re
+from . import reset, css
 
 
 # COMPILER
 def render(node):
-    css = ""
+    _css = ""
     children = []
     for key, value in node.__dict__.items():
         if type(value) == type:
@@ -20,13 +23,13 @@ def render(node):
                 children.append(value)
         elif key not in ("__module__","__doc__","content","_html"):
             if "_" in key: key = key.replace("_", "-")
-            css += f"{key}:{value};"
+            _css += f"{key}:{value};"
 
     inner = "<br>".join(node.content.splitlines())+ "".join(render(c) for c in children)
 
-    return f'<{node._html} style="{css}">{inner}</{node._html}>'
+    return f'<{node._html} style="{_css}">{inner}</{node._html}>'
 
-def write(node):
+def write(path, node):
     module = safe_load(path)
     if module:
         script = """
@@ -47,9 +50,17 @@ def write(node):
         }, 1000);
         </script>
         """
-
         with open("index.html", "w") as f:
-            f.write("<!DOCTYPE html><head>"+script+"</head><html>"+render(module.__dict__[node])+"</html>")
+            html = render(module.__dict__[node])
+            style = ""
+            for c in css:
+                style += c["css"]+": {\n"
+                for k, v in c.items():
+                    if k != "css":
+                        style += f"{k}:{v};\n"
+                style += "}\n\n"
+            f.write("<!DOCTYPE html><head>\n<style>\n"+style+"</style>\n"+script+"</head><html>"+html+"</html>")
+        reset()
     else:
         return
 
@@ -86,7 +97,7 @@ class WatchHandler(FileSystemEventHandler):
         if os.path.abspath(event.src_path) != self.path:
             return
         now = time.time()
-        write(self.node)
+        write(self.path, self.node)
         with open("./reload.flag", "w") as f:
             f.write(str(now))
 
@@ -139,7 +150,30 @@ def serve(stop_event):
         server.server_close()
 
 
-if __name__ == "__main__":
+def generate_fonts():
+    if len(fonts.__dict__) < 11:
+        system_fonts = font_manager.findSystemFonts()
+
+        with open(os.path.join(
+            os.path.dirname(
+                os.path.abspath(__file__)
+            ), "fonts.py"), "w", encoding="utf-8") as f:
+            f.write("# Auto-generated System Fonts. To regenerate remove all lines.\n\n")
+            f.write("_paths = "+str(system_fonts))
+
+            for i, font_path in enumerate(system_fonts):
+                font = os.path.splitext(os.path.basename(font_path))[0]
+                var_name = re.sub(r'[\s-]+', '_', re.sub(r'[^\w\s-]', '', font))
+
+                if var_name and var_name[0].isdigit():
+                    var_name = f"_{var_name}"
+
+                f.write(f'\n{var_name}:int|str = {i}')
+
+
+def main():
+    generate_fonts()
+
     path = sys.argv[1]
     node = sys.argv[2]
 
@@ -167,3 +201,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nshutting down...")
         stop_event.set()
+
+if __name__ == "__main__":
+    main()
