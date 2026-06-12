@@ -11,23 +11,71 @@ from . import fonts
 from matplotlib import font_manager
 import re
 from . import reset, css
+from . import node as NODE
 
+syntax_var = {
+    "stack": "flex-direction"
+}
+syntax_val = {
+    "stack": {"h":"row","v":"column","horizontal":"row","vertical":"column"},
+}
+syntax_dep = {
+    "stack": {"display": "flex"}
+}
 
 # COMPILER
-def render(node):
-    _css = ""
+def parsecss(node, parent=None):
     children = []
     for key, value in node.__dict__.items():
-        if type(value) == type:
-            if type(value.__mro__[-2]) == type(node):
-                children.append(value)
-        elif key not in ("__module__","__doc__","content","_html"):
-            if "_" in key: key = key.replace("_", "-")
-            _css += f"{key}:{value};"
+        if isinstance(value, type):
+            if value.__module__ == NODE.__module__: continue
+            if isinstance(value.__mro__[-2], type(NODE)):
+                heritage = [c.__qualname__.replace(".","-") for c in value.__mro__[::-1][3:]]
+                if heritage:
+                    value._cssid = len(css)
+                    css.append([("css","."+heritage[-1])])
+                    value._classname = " ".join(heritage)
+                    children.append(value)
+        elif not key.startswith("_") and key != "content" and isinstance(node, type(NODE)):
+            if key in node._inherited:
+                print(node, key, value, node._inherited[key])
+                if value == node._inherited[key]:
+                    continue
 
-    inner = "<br>".join(node.content.splitlines())+ "".join(render(c) for c in children)
+            new_key = key
+            if key in syntax_var:
+                new_key = syntax_var[key]
+            if key in syntax_val:
+                if value in syntax_val[key]:
+                    value = syntax_val[key][value]
+            if key in syntax_dep:
+                for k, v in syntax_dep[key].items():
+                    if "_" in k: k = k.replace("_", "-")
+                    if isinstance(v, tuple):
+                        value = "".join(str(v_) for v_ in v)
+                    css[node._cssid].append((k, v))
 
-    return f'<{node._html} style="{_css}">{inner}</{node._html}>'
+            if "_" in new_key: new_key = new_key.replace("_", "-")
+            if isinstance(value, tuple):
+                value = "".join(str(v) for v in value)
+            css[node._cssid].append((new_key, value))
+
+    if isinstance(node, type(NODE)):
+        node._children = children
+    for child in children:
+        parsecss(child, node)
+
+def render(node, depth=0):
+    indent = "  "*depth
+
+    inner = ""
+    if node.content:
+        inner = "\n  "+ indent + "<br>".join(node.content.splitlines())
+    for child in node._children: inner += render(child, depth+1)
+    depth = 0
+
+    return f'\n{indent}<{node._html} class="{node._classname}">{inner}\n{indent}</{node._html}>'
+
 
 def write(path, node):
     module = safe_load(path)
@@ -47,20 +95,22 @@ def write(path, node):
 
                 last = t;
             } catch (e) {}
-        }, 1000);
+        }, 300);
         </script>
         """
         with open("index.html", "w") as f:
+            parsecss(module)
             html = render(module.__dict__[node])
             style = ""
-            for c in css:
-                style += c["css"]+": {\n"
-                for k, v in c.items():
-                    if k != "css":
-                        style += f"{k}:{v};\n"
+            for cs in css:
+                for c in cs:
+                    if c[0] == "css":
+                        style += c[1]+" {\n"
+                        continue
+                    style += f"\t{c[0]}:{c[1]};\n"
                 style += "}\n\n"
+            css.clear()
             f.write("<!DOCTYPE html><head>\n<style>\n"+style+"</style>\n"+script+"</head><html>"+html+"</html>")
-        reset()
     else:
         return
 
@@ -176,6 +226,7 @@ def main():
 
     path = sys.argv[1]
     node = sys.argv[2]
+    write(path, node)
 
     stop_event = threading.Event()
 
