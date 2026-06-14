@@ -10,20 +10,19 @@ import logging
 from . import fonts
 from matplotlib import font_manager
 import re
-from . import reset, css
+from . import css
 from . import node as NODE
 
-syntax_var = {
-    "stack": "flex-direction"
-}
-syntax_val = {
-    "stack": {"h":"row","v":"column","horizontal":"row","vertical":"column"},
-}
-syntax_dep = {
-    "stack": {"display": "flex"}
-}
+
+module = None
 
 # COMPILER
+def addcss(node, key, value):
+    if "_" in key: key = key.replace("_", "-")
+    if isinstance(value, tuple):
+        value = "".join(str(v) for v in value)
+    css[node._cssid].append((key, value))
+
 def parsecss(node, parent=None):
     children = []
     for key, value in node.__dict__.items():
@@ -38,29 +37,19 @@ def parsecss(node, parent=None):
                     children.append(value)
         elif not key.startswith("_") and key != "content" and isinstance(node, type(NODE)):
             if key in node._inherited:
-                print(node, key, value, node._inherited[key])
                 if value == node._inherited[key]:
                     continue
 
-            new_key = key
-            if key in syntax_var:
-                new_key = syntax_var[key]
-            if key in syntax_val:
-                if value in syntax_val[key]:
-                    value = syntax_val[key][value]
-            if key in syntax_dep:
-                for k, v in syntax_dep[key].items():
-                    if "_" in k: k = k.replace("_", "-")
-                    if isinstance(v, tuple):
-                        value = "".join(str(v_) for v_ in v)
-                    css[node._cssid].append((k, v))
-
-            if "_" in new_key: new_key = new_key.replace("_", "-")
-            if isinstance(value, tuple):
-                value = "".join(str(v) for v in value)
-            css[node._cssid].append((new_key, value))
+            if key in module.__dict__:
+                func = module.__dict__[key]
+                if callable(func):
+                    for k, v in func(value):
+                        addcss(node,k,v)
+            else:
+                addcss(node,key,value)
 
     if isinstance(node, type(NODE)):
+        css[node._cssid] = list(dict.fromkeys(css[node._cssid]))
         node._children = children
     for child in children:
         parsecss(child, node)
@@ -103,18 +92,21 @@ def write(path, node):
             html = render(module.__dict__[node])
             style = ""
             for cs in css:
+                start = ""
+                attrs = ""
                 for c in cs:
                     if c[0] == "css":
-                        style += c[1]+" {\n"
+                        start = c[1]+" {\n"
                         continue
-                    style += f"\t{c[0]}:{c[1]};\n"
-                style += "}\n\n"
+                    attrs += f"\t{c[0]}:{c[1]};\n"
+                style += start+attrs+"}\n\n"
             css.clear()
             f.write("<!DOCTYPE html><head>\n<style>\n"+style+"</style>\n"+script+"</head><html>"+html+"</html>")
     else:
         return
 
 def load_module_from_path(path):
+    global module
     module_name = path.split("/")[-1].split(".")[0]
 
     spec = importlib.util.spec_from_file_location(module_name, path)
