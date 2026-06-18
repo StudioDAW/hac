@@ -13,6 +13,10 @@ import re
 from . import css
 from . import node as NODE
 
+# book pages spreads pagebreaks
+# japanese color book
+# code blocks charts
+# auto load font
 
 module = None
 
@@ -25,6 +29,7 @@ def addcss(node, key, value):
 
 def parsecss(node, parent=None):
     children = []
+    media_value = None
     for key, value in node.__dict__.items():
         if isinstance(value, type):
             if value.__module__ == NODE.__module__: continue
@@ -35,7 +40,7 @@ def parsecss(node, parent=None):
                     css.append([("css","."+heritage[-1])])
                     value._classname = " ".join(heritage)
                     children.append(value)
-        elif not key.startswith("_") and key != "content" and isinstance(node, type(NODE)):
+        elif not key.startswith("_") and key not in "content" and isinstance(node, type(NODE)):
             if key in node._inherited:
                 if value == node._inherited[key]:
                     continue
@@ -43,7 +48,7 @@ def parsecss(node, parent=None):
             if key in module.__dict__:
                 func = module.__dict__[key]
                 if callable(func):
-                    for k, v in func(value):
+                    for k, v in func(value, node):
                         addcss(node,k,v)
             else:
                 addcss(node,key,value)
@@ -90,7 +95,44 @@ def write(path, node):
         with open("index.html", "w") as f:
             parsecss(module)
             html = render(module.__dict__[node])
-            style = ""
+            style = """
+@page {
+    size: A4;
+    margin: 0;
+}
+
+@media print {
+
+    body {
+        margin: 0;
+        padding: 0;
+        display: block !important;
+    }
+
+    .spread {
+        width: auto !important;
+        height: auto !important;
+        display: block !important; 
+    }
+
+    .page {
+        width: 210mm;
+        height: 297mm;
+        break-after: page;
+        page-break-after: always;
+    }
+
+    .page:last-child {
+        break-after: auto;
+        page-break-after: auto;
+    }
+
+    * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+"""
             for cs in css:
                 start = ""
                 attrs = ""

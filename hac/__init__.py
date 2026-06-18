@@ -15,10 +15,22 @@ vw: Final[str] = "vw"
 percent: Final[str] = "%"
 pct: Final[str] = "%"
 
+units = [px,pt,mm,cm,em,rem,vh,vw,percent,pct]
+
 v: Final[str] = "v"
 h: Final[str] = "h"
 vertical: Final[str] = "vertical"
 horizontal: Final[str] = "horizontal"
+
+down: Final[str] = "down"
+up: Final[str] = "up"
+upright: Final[str] = "upright"
+
+top: Final[str] = "top"
+bottom: Final[str] = "bottom"
+left: Final[str] = "left"
+right: Final[str] = "right"
+
 
 css = []
 
@@ -132,10 +144,76 @@ class div(node):
 
 class h1(node):
     _html = "h1"
-class header(h1):
-    pass
 
 class p(node):
     _html = "p"
 
 
+def tuple_value(func):
+    def wrapper(value, node):
+        css = []
+        if isinstance(value, tuple):
+            transforms = {}
+            for val in value:
+                if val in units:
+                    return func(value, node)
+                css += func(val, node)
+            for i, c in enumerate(css):
+                if c[0] == "transform":
+                    transforms[i] = c[1]
+            if transforms:
+                for i, transform in enumerate(transforms.keys()):
+                    css.pop(transform-i)
+                css.append(("transform"," ".join(transforms.values())))
+
+        else:
+            return func(value, node)
+        return css
+    return wrapper
+
+
+# LAYOUT
+
+
+@tuple_value
+def center(value, node):
+    css = [("display", "flex")]
+    if value in (v,vertical):
+        css.append(("justify_content", "center"))
+    elif value in (h,horizontal):
+        css.append(("align_items", "center"))
+    return list(dict.fromkeys(css))
+
+
+def stack(value, node):
+    css = [("display", "flex")]
+    values = {h:"row",v:"column",horizontal:"row",vertical:"column"}
+    if value in values:
+        css.append(("flex-direction", values[value]))
+    return css
+
+
+# SHAPE
+
+
+def triangle(value, node):
+    css = []
+    if isinstance(value, float|int):
+        value = str(value*100)+"%"
+    elif isinstance(value, tuple):
+        value = "".join(str(val) for val in value)
+    if value.endswith("%"):
+        css.append(("clip_path",f"polygon(0% 100%, {value} 0%, 100% 100%)"))
+    return css
+
+
+# TRANSFORM
+
+@tuple_value
+def flip(value, node):
+    css = []
+    if value in (v,vertical):
+        css.append(("transform","scaleY(-1)"))
+    elif value in (h,horizontal):
+        css.append(("transform","scaleX(-1)"))
+    return css
