@@ -10,15 +10,24 @@ import logging
 from . import fonts
 from matplotlib import font_manager
 import re
-from . import css
+from . import css, precss
 from . import node as NODE
 
-# book pages spreads pagebreaks
-# japanese color book
+
 # code blocks charts
-# auto load font
 
 module = None
+
+def load_font(font):
+    font_family, font_format = os.path.splitext(os.path.basename(fonts._paths[font]))
+    precss.append([
+        ("css", "@font-face"),
+        ("font-family", f'"{font_family}"'),
+        ("src", f'url("{fonts._paths[font]}"), format("{font_format[1:]}")')
+    ])
+    print(font_family)
+    return f"\'{font_family}\'"
+loaded_fonts = {}
 
 # COMPILER
 def addcss(node, key, value):
@@ -50,6 +59,11 @@ def parsecss(node, parent=None):
                 if callable(func):
                     for k, v in func(value, node):
                         addcss(node,k,v)
+            elif key == "font_family":
+                print(loaded_fonts, value)
+                if value not in loaded_fonts.keys():
+                    loaded_fonts[value] = load_font(value)
+                addcss(node,key,loaded_fonts[value])
             else:
                 addcss(node,key,value)
 
@@ -60,13 +74,18 @@ def parsecss(node, parent=None):
         parsecss(child, node)
 
 def render(node, depth=0):
+    code_block = True if node.__mro__[-3].__name__ == "code" else False
     indent = "  "*depth
 
     inner = ""
     if node.content:
-        inner = "\n  "+ indent + "<br>".join(node.content.splitlines())
+        lines = node.content if code_block else "<br>".join(node.content.splitlines())
+        inner = "\n  "+ indent + lines
     for child in node._children: inner += render(child, depth+1)
     depth = 0
+
+    if code_block:
+        return f'\n{indent}<{node._html[0]} class="{node._classname}"><{node._html[1]} class="{node.language}">{inner}\n{indent}</{node._html[1]}></{node._html[0]}>'
 
     return f'\n{indent}<{node._html} class="{node._classname}">{inner}\n{indent}</{node._html}>'
 
@@ -75,22 +94,24 @@ def write(path, node):
     module = safe_load(path)
     if module:
         script = """
-        <script>
-        let last = null;
+<link href="hac/prism.css" rel="stylesheet" />
+<script src="hac/prism.js"></script>
+<script>
+let last = null;
 
-        setInterval(async () => {
-            try {
-                const res = await fetch("reload.flag", { cache: "no-store" });
-                const t = await res.text();
+setInterval(async () => {
+    try {
+        const res = await fetch("reload.flag", { cache: "no-store" });
+        const t = await res.text();
 
-                if (last && t !== last) {
-                    location.reload();
-                }
+        if (last && t !== last) {
+            location.reload();
+        }
 
-                last = t;
-            } catch (e) {}
-        }, 300);
-        </script>
+        last = t;
+    } catch (e) {}
+}, 300);
+</script>
         """
         with open("index.html", "w") as f:
             parsecss(module)
@@ -133,7 +154,7 @@ def write(path, node):
     }
 }
 """
-            for cs in css:
+            for cs in precss+css:
                 start = ""
                 attrs = ""
                 for c in cs:

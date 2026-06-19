@@ -33,15 +33,7 @@ right: Final[str] = "right"
 
 
 css = []
-
-def load_font(font):
-    font_family, font_format = os.path.splitext(os.path.basename(_paths[font]))
-    css.append([
-        ("css", "@font-face"),
-        ("font-family", f'"{font_family}"'),
-        ("src", f'url("{_paths[font]}"), format("{font_format}")')
-    ])
-    return f"\'{font_family}\'"
+precss = []
 
 def clone_class(cls):
     attrs = {}
@@ -148,6 +140,9 @@ class h1(node):
 class p(node):
     _html = "p"
 
+class code(node):
+    _html = ("pre", "code")
+    language = "html"
 
 def tuple_value(func):
     def wrapper(value, node):
