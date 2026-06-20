@@ -197,7 +197,7 @@ def load_module(path):
 # WATCHDOG
 class WatchHandler(FileSystemEventHandler):
     def __init__(self, path, node) -> None:
-        self.path = os.path.abspath(path)
+        self.path = path
         self.node = node
         self.last_run = 0
         self.debounce_time = 0.1
@@ -217,11 +217,11 @@ def watch(path, node, stop_event):
     handler = WatchHandler(path, node)
     observer = Observer()
 
-    watch_dir = os.path.dirname(os.path.abspath(path))
+    watch_dir = os.path.dirname(path)
     observer.schedule(handler, watch_dir, recursive=False)
 
     observer.start()
-    print(f"watching: {path}")
+    print(f"watching: {'/'.join(path.split('/')[-2:])}")
     
     try:
         while not stop_event.is_set():
@@ -263,30 +263,41 @@ def serve(stop_event):
 
 
 def generate_fonts():
-    if len(fonts.__dict__) < 11:
-        system_fonts = font_manager.findSystemFonts()
+    if hasattr(fonts, "_paths"):
+        if len(getattr(fonts, "_paths")) != 0:
+            return
+    print("generating hac.fonts...")
+    system_fonts = font_manager.findSystemFonts()
 
-        with open(os.path.join(
-            os.path.dirname(
-                os.path.abspath(__file__)
-            ), "fonts.py"), "w", encoding="utf-8") as f:
-            f.write("# Auto-generated System Fonts. To regenerate remove all lines.\n\n")
-            f.write("_paths = "+str(system_fonts))
+    with open(os.path.join(
+        os.path.dirname(
+            os.path.abspath(__file__)
+        ), "fonts.py"), "w", encoding="utf-8") as f:
+        f.write("# Auto-generated System Fonts. To regenerate remove all lines.\n\n")
+        f.write("_paths = "+str(system_fonts))
 
-            for i, font_path in enumerate(system_fonts):
-                font = os.path.splitext(os.path.basename(font_path))[0]
-                var_name = re.sub(r'[\s-]+', '_', re.sub(r'[^\w\s-]', '', font))
+        for i, font_path in enumerate(system_fonts):
+            font = os.path.splitext(os.path.basename(font_path))[0]
+            var_name = re.sub(r'[\s-]+', '_', re.sub(r'[^\w\s-]', '', font))
 
-                if var_name and var_name[0].isdigit():
-                    var_name = f"_{var_name}"
+            if var_name and var_name[0].isdigit():
+                var_name = f"_{var_name}"
 
-                f.write(f'\n{var_name}:int|str = {i}')
+            f.write(f'\n{var_name}:int = {i}')
+        print("hac.fonts generated")
+        time.sleep(1)
+        os.execv(sys.executable, [sys.executable]+sys.argv)
 
 
 def main():
     generate_fonts()
+    path = ""
 
-    path = os.path.join(sys.argv[1], "design.py")
+    if len(sys.argv) < 2:
+        path = os.getcwd()
+    else:
+        path = os.path.abspath(sys.argv[1])
+    path = os.path.join(path, "design.py")
     write(path, "main")
 
     stop_event = threading.Event()

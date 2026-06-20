@@ -1,5 +1,4 @@
 from typing import Any, Final
-from .fonts import _paths
 import os
 
 content: Any
