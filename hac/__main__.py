@@ -2,6 +2,7 @@ import sys
 import importlib.util
 import time
 import os
+import types
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from http.server import SimpleHTTPRequestHandler, HTTPServer
@@ -12,7 +13,6 @@ from matplotlib import font_manager
 import re
 from . import css, precss
 from . import node as NODE
-
 
 # code blocks charts
 
@@ -25,7 +25,6 @@ def load_font(font):
         ("font-family", f'"{font_family}"'),
         ("src", f'url("{fonts._paths[font]}"), format("{font_format[1:]}")')
     ])
-    print(font_family)
     return f"\'{font_family}\'"
 loaded_fonts = {}
 
@@ -60,7 +59,6 @@ def parsecss(node, parent=None):
                     for k, v in func(value, node):
                         addcss(node,k,v)
             elif key == "font_family":
-                print(loaded_fonts, value)
                 if value not in loaded_fonts.keys():
                     loaded_fonts[value] = load_font(value)
                 addcss(node,key,loaded_fonts[value])
@@ -91,7 +89,8 @@ def render(node, depth=0):
 
 
 def write(path, node):
-    module = safe_load(path)
+    global module
+    module = load_module(path)
     if module:
         script = """
 <link href="hac/prism.css" rel="stylesheet" />
@@ -168,27 +167,32 @@ setInterval(async () => {
     else:
         return
 
-def load_module_from_path(path):
-    global module
-    module_name = path.split("/")[-1].split(".")[0]
 
-    spec = importlib.util.spec_from_file_location(module_name, path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
+_loaded_packages = set()
 
-    return module
+def load_module(path):
+    module_name = ".".join(path.split("/")[-2::])[:-3]
 
-def safe_load(path):
-    module_name = path.split("/")[-1].split(".")[0]
+    project_root = os.path.dirname(os.path.dirname(path))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
 
-    sys.modules.pop(module_name, None)
+    package_name = module_name.split(".")[0]
 
     try:
-        return load_module_from_path(path)
+        for name in list(sys.modules.keys()):
+            if name == package_name or name.startswith(package_name + "."):
+                del sys.modules[name]
+
+        module = importlib.import_module(module_name)
+
+        _loaded_packages.add(module_name)
+
+        return module
     except Exception as e:
         print("Load failed:", e)
         return None
+
 
 # WATCHDOG
 class WatchHandler(FileSystemEventHandler):
@@ -202,6 +206,9 @@ class WatchHandler(FileSystemEventHandler):
         if os.path.abspath(event.src_path) != self.path:
             return
         now = time.time()
+        if now - self.last_run < self.debounce_time:
+            return
+        self.last_run = now
         write(self.path, self.node)
         with open("./reload.flag", "w") as f:
             f.write(str(now))
@@ -279,15 +286,14 @@ def generate_fonts():
 def main():
     generate_fonts()
 
-    path = sys.argv[1]
-    node = sys.argv[2]
-    write(path, node)
+    path = os.path.join(sys.argv[1], "design.py")
+    write(path, "main")
 
     stop_event = threading.Event()
 
     watcher_thread = threading.Thread(
         target=watch,
-        args=(path, node, stop_event),
+        args=(path, "main", stop_event),
         daemon=True
     )
 
