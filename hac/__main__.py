@@ -11,12 +11,13 @@ import logging
 from . import fonts
 from matplotlib import font_manager
 import re
-from . import css, precss
+from . import css, precss#, guides
 from . import node as NODE
 
 # code blocks charts
 
 module = None
+font_dir = ""
 
 def load_font(font):
     font_family, font_format = os.path.splitext(os.path.basename(fonts._paths[font]))
@@ -40,7 +41,9 @@ def parsecss(node, parent=None):
     media_value = None
     for key, value in node.__dict__.items():
         if isinstance(value, type):
-            if value.__module__ == NODE.__module__: continue
+#            if value.__module__ == NODE.__module__:
+#                print(key,value)
+#                continue
             if isinstance(value.__mro__[-2], type(NODE)):
                 heritage = [c.__qualname__.replace(".","-") for c in value.__mro__[::-1][3:]]
                 if heritage:
@@ -72,7 +75,13 @@ def parsecss(node, parent=None):
         parsecss(child, node)
 
 def render(node, depth=0):
+    if hasattr(node, "enabled"):
+        if node.enabled == False:
+            print(node)
+            return ""
+
     code_block = True if node.__mro__[-3].__name__ == "code" else False
+
     indent = "  "*depth
 
     inner = ""
@@ -200,7 +209,7 @@ class WatchHandler(FileSystemEventHandler):
         self.path = path
         self.node = node
         self.last_run = 0
-        self.debounce_time = 0.1
+        self.debounce_time = 3
 
     def on_modified(self, event) -> None:
         if os.path.abspath(event.src_path) != self.path:
@@ -225,7 +234,7 @@ def watch(path, node, stop_event):
     
     try:
         while not stop_event.is_set():
-            time.sleep(.1)
+            time.sleep(.5)
     finally:
         observer.stop()
         observer.join()
@@ -290,13 +299,72 @@ def generate_fonts():
 
 
 def main():
+    global font_dir
+
     generate_fonts()
     path = ""
 
     if len(sys.argv) < 2:
         path = os.getcwd()
+    elif sys.argv[1] == "init":
+        path = os.getcwd() if len(sys.argv) < 3 else os.path.abspath(sys.argv[2])
+        if not os.path.exists(path): os.mkdir(path)
+        if len(os.listdir(path)) != 0:
+            print(f"To initialize please make sure the project directory '{path}' is empty.")
+            quit()
+        os.mkdir(os.path.join(path, "fonts"))
+        os.mkdir(os.path.join(path, "images"))
+        with open(os.path.join(path,"__init__.py"), "w") as f:
+            f.write(
+"""# __init__.py 
+
+from hac import *
+from hac import colors
+
+class reusable_class(div):
+    ratio = 1
+    height = 50,pct
+    stack = vertical
+    center = v,h
+    background = colors.ochraceous_salmon
+    color = colors.black
+
+    class text(h1):
+        content = "H"
+        font_size = 180,pt
+""")
+        with open(os.path.join(path,"design.py"), "w") as f:
+            f.write(
+"""# design.py
+
+from hac import *
+from hac import colors
+from . import reusable_class
+
+class main(body):
+    center = vertical,horizontal
+    background = colors.white
+
+    class container(div):
+        width = 80,pct
+        height = 100,pct
+        stack = horizontal
+        center = vertical,horizontal
+        gap = 30,mm
+
+        class H(reusable_class): pass
+
+        class A(reusable_class):
+            class text(reusable_class.text):
+                content = "A"
+
+        class C(reusable_class):
+            pass
+        C.text.content = "C"
+""")
     else:
         path = os.path.abspath(sys.argv[1])
+    font_dir = os.path.join(path, "fonts")
     path = os.path.join(path, "design.py")
     write(path, "main")
 

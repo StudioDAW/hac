@@ -127,11 +127,15 @@ class node(metaclass=NodeMeta):
 #                            setattr(cls, k, v)
 
 
-class body(node):
+class _body(node):
     _html = "body"
+class body(_body):
+    height = 100,vh
+    margin = 0
 
 class div(node):
     _html = "div"
+    margin = 0
 
 class h1(node):
     _html = "h1"
@@ -142,6 +146,29 @@ class p(node):
 class code(node):
     _html = ("pre", "code")
     language = "html"
+
+class page(div):
+    width = 210,mm
+    height = 297,mm
+    background = "white"
+    margin = 0
+    stack = vertical
+    position = "relative"
+
+    class guides(div):
+        enabled: bool
+        position = "absolute"
+        inset = 0
+        z_index = 9999
+        center = v,h
+
+
+        class margin(div):
+            enabled: bool
+            outline = 2,px," solid red"
+            width = "calc(100% - 20mm)"
+            height = "calc(100% - 20mm)"
+
 
 def tuple_value(func):
     def wrapper(value, node):
@@ -185,6 +212,14 @@ def stack(value, node):
     if value in values:
         css.append(("flex-direction", values[value]))
     return css
+
+def ratio(value, node):
+    css = [("display", "flex")]
+    if isinstance(value, tuple):
+        value = "".join(str(v) for v in value)
+    css.append(("flex",value))
+    return css
+
 
 
 # SHAPE
