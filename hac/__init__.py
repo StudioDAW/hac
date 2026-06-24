@@ -4,23 +4,24 @@ import os
 content: Any
 
 class unit:
-    def __init__(self, val):
+    def __init__(self, val, calc=False):
         self.val = val
+        self.calc = calc
 
     def __str__(self):
         return self.val
 
     def __add__(self, value):
-        self.val += "+"+str(value)
-        return self.val
+        return unit(self.val + " + "+str(value), True)
 
     def __sub__(self, value):
-        self.val += "-"+str(value)
-        return self.val
+        return unit(self.val + " - "+str(value), True)
+
+    def __or__(self, value):
+        return unit(self.val+str(value), self.calc)
 
     def __ror__(self, value):
-        self.val = str(value)+self.val
-        return self.val
+        return unit(str(value)+self.val, self.calc)
 
 
 px: unit = unit("px")
@@ -168,7 +169,7 @@ class node(metaclass=NodeMeta):
 class _body(node):
     _html = "body"
 class body(_body):
-    min_height = 100,vh
+    min_height = 100|vh
     margin = 0
 
 class div(node):
@@ -186,8 +187,8 @@ class code(node):
     language = "html"
 
 class page(div):
-    width = 210,mm
-    height = 297,mm
+    width = 210|mm
+    height = 297|mm
     background = "white"
     margin = 0
     stack = vertical
@@ -203,9 +204,9 @@ class page(div):
 
         class margin(div):
             enabled: bool
-            outline = 2,px," solid red"
-            width = "calc(100% - 20mm)"
-            height = "calc(100% - 20mm)"
+            outline = 2|px|" solid red"
+            width = 100|pct - 20|mm
+            height = 100|pct - 20|mm
 
 
 def tuple_value(func):
@@ -263,6 +264,7 @@ def ratio(value, node):
 # SHAPE
 
 
+# fix this later
 def triangle(value, node):
     css = {}
     if isinstance(value, float|int):

@@ -11,7 +11,7 @@ import logging
 from . import fonts
 from matplotlib import font_manager
 import re
-from . import css, precss#, guides
+from . import css, precss, unit
 from . import node as NODE
 
 # code blocks charts
@@ -36,8 +36,11 @@ loaded_fonts = {}
 # COMPILER
 def addcss(node, key, value):
     if "_" in key: key = key.replace("_", "-")
-    if isinstance(value, tuple):
-        value = "".join(str(v) for v in value)
+    if isinstance(value, unit):
+        if value.calc:
+            value = "calc("+value.val+")"
+        else:
+            value = value.val
     css[node._cssid][key] = value
 
 def parsecss(node, parent=None):
