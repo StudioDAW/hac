@@ -3,16 +3,36 @@ import os
 
 content: Any
 
-px: Final[str] = "px"
-pt: Final[str] = "pt"
-mm: Final[str] = "mm"
-cm: Final[str] = "cm"
-em: Final[str] = "em"
-rem: Final[str] = "rem"
-vh: Final[str] = "vh"
-vw: Final[str] = "vw"
-percent: Final[str] = "%"
-pct: Final[str] = "%"
+class unit:
+    def __init__(self, val):
+        self.val = val
+
+    def __str__(self):
+        return self.val
+
+    def __add__(self, value):
+        self.val += "+"+str(value)
+        return self.val
+
+    def __sub__(self, value):
+        self.val += "-"+str(value)
+        return self.val
+
+    def __ror__(self, value):
+        self.val = str(value)+self.val
+        return self.val
+
+
+px: unit = unit("px")
+pt: unit = unit("pt")
+mm: unit = unit("mm")
+cm: unit = unit("cm")
+em: unit = unit("em")
+rem: unit = unit("rem")
+vh: unit = unit("vh")
+vw: unit = unit("vw")
+percent: unit = unit("%")
+pct: unit = unit("%")
 
 units = [px,pt,mm,cm,em,rem,vh,vw,percent,pct]
 
@@ -29,6 +49,24 @@ top: Final[str] = "top"
 bottom: Final[str] = "bottom"
 left: Final[str] = "left"
 right: Final[str] = "right"
+
+class modes:
+    normal: Final[str] = "normal"
+    darken: Final[str] = "darken"
+    multiply: Final[str] = "multiply"
+    color_burn: Final[str] = "coloriburn"
+    lighten: Final[str] = "lighten"
+    screen: Final[str] = "screen"
+    color_dodge: Final[str] = "color-dodge"
+    overlay: Final[str] = "overlay"
+    soft_light: Final[str] = "soft-light"
+    hard_light: Final[str] = "hard-light"
+    difference: Final[str] = "difference"
+    exclusion: Final[str] = "exclusion"
+    hue: Final[str] = "hue"
+    saturation: Final[str] = "saturation"
+    color: Final[str] = "color"
+    luminosity: Final[str] = "luminosity"
 
 
 css = []
@@ -130,7 +168,7 @@ class node(metaclass=NodeMeta):
 class _body(node):
     _html = "body"
 class body(_body):
-    height = 100,vh
+    min_height = 100,vh
     margin = 0
 
 class div(node):
@@ -172,20 +210,20 @@ class page(div):
 
 def tuple_value(func):
     def wrapper(value, node):
-        css = []
+        css = {}
         if isinstance(value, tuple):
             transforms = {}
             for val in value:
                 if val in units:
                     return func(value, node)
-                css += func(val, node)
+                css |= func(val, node)
             for i, c in enumerate(css):
                 if c[0] == "transform":
                     transforms[i] = c[1]
             if transforms:
                 for i, transform in enumerate(transforms.keys()):
                     css.pop(transform-i)
-                css.append(("transform"," ".join(transforms.values())))
+                css["transform"] = " ".join(transforms.values())
 
         else:
             return func(value, node)
@@ -198,26 +236,26 @@ def tuple_value(func):
 
 @tuple_value
 def center(value, node):
-    css = [("display", "flex")]
+    css = {"display": "flex"}
     if value in (v,vertical):
-        css.append(("justify_content", "center"))
+        css["justify_content"] = "center"
     elif value in (h,horizontal):
-        css.append(("align_items", "center"))
-    return list(dict.fromkeys(css))
+        css["align_items"] = "center"
+    return css
 
 
 def stack(value, node):
-    css = [("display", "flex")]
+    css = {"display": "flex"}
     values = {h:"row",v:"column",horizontal:"row",vertical:"column"}
     if value in values:
-        css.append(("flex-direction", values[value]))
+        css["flex-direction"] = values[value]
     return css
 
 def ratio(value, node):
-    css = [("display", "flex")]
+    css = {"display": "flex"}
     if isinstance(value, tuple):
         value = "".join(str(v) for v in value)
-    css.append(("flex",value))
+    css["flex"] = value
     return css
 
 
@@ -226,13 +264,13 @@ def ratio(value, node):
 
 
 def triangle(value, node):
-    css = []
+    css = {}
     if isinstance(value, float|int):
         value = str(value*100)+"%"
     elif isinstance(value, tuple):
         value = "".join(str(val) for val in value)
     if value.endswith("%"):
-        css.append(("clip_path",f"polygon(0% 100%, {value} 0%, 100% 100%)"))
+        css["clip_path"] = f"polygon(0% 100%, {value} 0%, 100% 100%)"
     return css
 
 
@@ -240,9 +278,24 @@ def triangle(value, node):
 
 @tuple_value
 def flip(value, node):
-    css = []
+    css = {}
     if value in (v,vertical):
-        css.append(("transform","scaleY(-1)"))
+        css["transform"] = "scaleY(-1)"
     elif value in (h,horizontal):
-        css.append(("transform","scaleX(-1)"))
+        css["transform"] = "scaleX(-1)"
     return css
+
+
+# Visual
+
+def blend_mode(value, node):
+    return {"mix_blend_mode": value}
+
+def background_opacity(value, node):
+    """css value added before change"""
+    if node.background.startswith("#"):
+        if isinstance(value, float):
+            value = hex(round(value * 255))
+        return {"background": node.background+str(value)[2:]}
+    print(node.background)
+    return {}

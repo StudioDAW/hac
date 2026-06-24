@@ -21,11 +21,15 @@ font_dir = ""
 
 def load_font(font):
     font_family, font_format = os.path.splitext(os.path.basename(fonts._paths[font]))
-    precss.append([
-        ("css", "@font-face"),
-        ("font-family", f'"{font_family}"'),
-        ("src", f'url("{fonts._paths[font]}"), format("{font_format[1:]}")')
-    ])
+    path = "fonts/"+font_family+font_format
+    with open(fonts._paths[font], "rb") as copy:
+        with open(path, "wb") as paste:
+            paste.write(copy.read())
+    precss.append({
+        "css": "@font-face",
+        "font-family": f'"{font_family}"',
+        "src": f'url("{path}"), format("{font_format[1:]}")'
+    })
     return f"\'{font_family}\'"
 loaded_fonts = {}
 
@@ -34,7 +38,7 @@ def addcss(node, key, value):
     if "_" in key: key = key.replace("_", "-")
     if isinstance(value, tuple):
         value = "".join(str(v) for v in value)
-    css[node._cssid].append((key, value))
+    css[node._cssid][key] = value
 
 def parsecss(node, parent=None):
     children = []
@@ -48,7 +52,7 @@ def parsecss(node, parent=None):
                 heritage = [c.__qualname__.replace(".","-") for c in value.__mro__[::-1][3:]]
                 if heritage:
                     value._cssid = len(css)
-                    css.append([("css","."+heritage[-1])])
+                    css.append({"css": "."+heritage[-1]})
                     value._classname = " ".join(heritage)
                     children.append(value)
         elif not key.startswith("_") and key not in "content" and isinstance(node, type(NODE)):
@@ -59,7 +63,7 @@ def parsecss(node, parent=None):
             if key in module.__dict__:
                 func = module.__dict__[key]
                 if callable(func):
-                    for k, v in func(value, node):
+                    for k, v in func(value, node).items():
                         addcss(node,k,v)
             elif key == "font_family":
                 if value not in loaded_fonts.keys():
@@ -69,7 +73,7 @@ def parsecss(node, parent=None):
                 addcss(node,key,value)
 
     if isinstance(node, type(NODE)):
-        css[node._cssid] = list(dict.fromkeys(css[node._cssid]))
+#        css[node._cssid] = list(dict.fromkeys(css[node._cssid]))
         node._children = children
     for child in children:
         parsecss(child, node)
@@ -149,6 +153,11 @@ setInterval(async () => {
         height: 297mm;
         break-after: page;
         page-break-after: always;
+        margin: 0;
+    }
+    .page-guides {
+        visiblity: 0;
+        z-index: 0;
     }
 
     .page:last-child {
@@ -162,14 +171,14 @@ setInterval(async () => {
     }
 }
 """
-            for cs in precss+css:
+            for c in precss+css:
                 start = ""
                 attrs = ""
-                for c in cs:
-                    if c[0] == "css":
-                        start = c[1]+" {\n"
+                for k,v in c.items():
+                    if k == "css":
+                        start = v+" {\n"
                         continue
-                    attrs += f"\t{c[0]}:{c[1]};\n"
+                    attrs += f"\t{k}:{v};\n"
                 style += start+attrs+"}\n\n"
             css.clear()
             f.write("<!DOCTYPE html><head>\n<style>\n"+style+"</style>\n"+script+"</head><html>"+html+"</html>")
@@ -293,9 +302,8 @@ def generate_fonts():
                 var_name = f"_{var_name}"
 
             f.write(f'\n{var_name}:int = {i}')
-        print("hac.fonts generated")
-        time.sleep(1)
-        os.execv(sys.executable, [sys.executable]+sys.argv)
+    print("hac.fonts generated")
+    os.execv(sys.executable, [sys.executable]+sys.argv)
 
 
 def main():
