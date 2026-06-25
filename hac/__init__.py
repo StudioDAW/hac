@@ -1,4 +1,5 @@
 from typing import Any, Final
+from . import colors
 import os
 
 content: Any
@@ -12,10 +13,10 @@ class unit:
         return self.val
 
     def __add__(self, value):
-        return unit(self.val + " + "+str(value), True)
+        return unit(self.val + "+ "+str(value), True)
 
     def __sub__(self, value):
-        return unit(self.val + " - "+str(value), True)
+        return unit(self.val + "- "+str(value), True)
 
     def __or__(self, value):
         return unit(self.val+str(value), self.calc)
@@ -24,50 +25,61 @@ class unit:
         return unit(str(value)+self.val, self.calc)
 
 
-px: unit = unit("px")
-pt: unit = unit("pt")
-mm: unit = unit("mm")
-cm: unit = unit("cm")
-em: unit = unit("em")
-rem: unit = unit("rem")
-vh: unit = unit("vh")
-vw: unit = unit("vw")
-percent: unit = unit("%")
-pct: unit = unit("%")
+px: unit = unit("px ")
+pt: unit = unit("pt ")
+mm: unit = unit("mm ")
+cm: unit = unit("cm ")
+em: unit = unit("em ")
+rem: unit = unit("rem ")
+vh: unit = unit("vh ")
+vw: unit = unit("vw ")
+percent: unit = unit("% ")
+pct: unit = unit("% ")
 
 units = [px,pt,mm,cm,em,rem,vh,vw,percent,pct]
 
-v: Final[str] = "v"
-h: Final[str] = "h"
-vertical: Final[str] = "vertical"
-horizontal: Final[str] = "horizontal"
+v: Final[str] = "v "
+h: Final[str] = "h "
+vertical: Final[str] = "vertical "
+horizontal: Final[str] = "horizontal "
 
-down: Final[str] = "down"
-up: Final[str] = "up"
-upright: Final[str] = "upright"
+down: Final[str] = "down "
+up: Final[str] = "up "
+upright: Final[str] = "upright "
 
-top: Final[str] = "top"
-bottom: Final[str] = "bottom"
-left: Final[str] = "left"
-right: Final[str] = "right"
+top: Final[str] = "top "
+bottom: Final[str] = "bottom "
+left: Final[str] = "left "
+right: Final[str] = "right "
+
+underline: Final[str] = "underline "
+overline: Final[str] = "overline "
+line_through: Final[str] = "line-through "
+
+solid: Final[str] = "solid "
+double: Final[str] = "double "
+dotted: Final[str] = "dotted "
+dashed: Final[str] = "dashed "
+wavy: Final[str] = "wavy "
+
 
 class modes:
-    normal: Final[str] = "normal"
-    darken: Final[str] = "darken"
-    multiply: Final[str] = "multiply"
-    color_burn: Final[str] = "coloriburn"
-    lighten: Final[str] = "lighten"
-    screen: Final[str] = "screen"
-    color_dodge: Final[str] = "color-dodge"
-    overlay: Final[str] = "overlay"
-    soft_light: Final[str] = "soft-light"
-    hard_light: Final[str] = "hard-light"
-    difference: Final[str] = "difference"
-    exclusion: Final[str] = "exclusion"
-    hue: Final[str] = "hue"
-    saturation: Final[str] = "saturation"
-    color: Final[str] = "color"
-    luminosity: Final[str] = "luminosity"
+    normal: Final[str] = "normal "
+    darken: Final[str] = "darken "
+    multiply: Final[str] = "multiply "
+    color_burn: Final[str] = "coloriburn "
+    lighten: Final[str] = "lighten "
+    screen: Final[str] = "screen "
+    color_dodge: Final[str] = "color-dodge "
+    overlay: Final[str] = "overlay "
+    soft_light: Final[str] = "soft-light "
+    hard_light: Final[str] = "hard-light "
+    difference: Final[str] = "difference "
+    exclusion: Final[str] = "exclusion "
+    hue: Final[str] = "hue "
+    saturation: Final[str] = "saturation "
+    color: Final[str] = "color "
+    luminosity: Final[str] = "luminosity "
 
 
 css = []
@@ -193,6 +205,7 @@ class page(div):
     margin = 0
     stack = vertical
     position = "relative"
+    outline = 1|px|" solid "|colors.black
 
     class guides(div):
         enabled: bool
@@ -290,8 +303,22 @@ def flip(value, node):
 
 # Visual
 
+def line(value, node):
+    return {"text-decoration-line": value}
+
+def line_color(value, node):
+    return {"text-decoration-color": value}
+
+def line_style(value, node):
+    return {"text-decoration-style": value}
+
+def line_thickness(value, node):
+    return {"text-decoration-thickness": value}
+
+
 def blend_mode(value, node):
     return {"mix_blend_mode": value}
+
 
 def background_opacity(value, node):
     """css value added before change"""
