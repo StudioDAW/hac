@@ -92,16 +92,21 @@ def render(node, depth=0):
     indent = "  "*depth
 
     inner = ""
+    if hasattr(node, "inner"): inner += node.inner
+
     if node.content:
         lines = node.content if code_block else "<br>".join(node.content.splitlines())
-        inner = "\n  "+ indent + lines
+        inner += "\n  "+ indent + lines
     for child in node._children: inner += render(child, depth+1)
     depth = 0
 
     if code_block:
         return f'\n{indent}<{node._html[0]} class="{node._classname}"><{node._html[1]} class="{node.language}">{inner}\n{indent}</{node._html[1]}></{node._html[0]}>'
 
-    return f'\n{indent}<{node._html} class="{node._classname}">{inner}\n{indent}</{node._html}>'
+    tag = node.html["tag"]
+    variables = {}|node.html
+    variables.pop("tag")
+    return f'\n{indent}<{tag} {" ".join([f'{k}="{v}"' for k,v in variables.items()])} class="{node._classname}">{inner}\n{indent}</{tag}>'
 
 
 def write(path, node):

@@ -179,24 +179,29 @@ class node(metaclass=NodeMeta):
 
 
 class _body(node):
-    _html = "body"
+    html = {"tag": "body"}
 class body(_body):
     min_height = 100|vh
     margin = 0
 
 class div(node):
-    _html = "div"
+    html = {"tag": "div"}
     margin = 0
 
 class h1(node):
-    _html = "h1"
+    html = {"tag": "h1"}
 
 class p(node):
-    _html = "p"
+    html = {"tag": "p"}
 
-class code(node):
-    _html = ("pre", "code")
-    language = "html"
+class checkbox(node):
+    html = {"tag": "label"}
+    inner = '<input type="checkbox">'
+
+
+#class code(node):
+#    _html = ("pre", "code")
+#    language = "html"
 
 class page(div):
     width = 210|mm
